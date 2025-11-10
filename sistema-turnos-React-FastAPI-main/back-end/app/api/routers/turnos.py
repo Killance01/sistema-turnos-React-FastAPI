@@ -57,3 +57,25 @@ def delete_turno(turno_id: int):
         session.delete(t)
         session.commit()
         return
+
+from sqlmodel import SQLModel, Field
+
+class SucursalAssignPayload(SQLModel):
+    sucursal_id: int = Field(description="ID de la sucursal a asignar")
+
+@router.put("/{turno_id}/sucursal", response_model=TurnoRead)
+def asignar_sucursal(turno_id: int, payload: SucursalAssignPayload):
+    with Session(engine) as session:
+        t = session.get(Turno, turno_id)
+        if not t:
+            raise HTTPException(404, "Turno no encontrado")
+        # valida que exista la sucursal (opcional pero recomendable)
+        from app.models import Sucursal
+        s = session.get(Sucursal, payload.sucursal_id)
+        if not s:
+            raise HTTPException(404, "Sucursal no encontrada")
+        t.sucursal_id = payload.sucursal_id
+        session.add(t)
+        session.commit()
+        session.refresh(t)
+        return t

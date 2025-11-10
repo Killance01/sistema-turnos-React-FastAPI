@@ -198,8 +198,4 @@ Este sistema ofrece tanto la visión de los **usuarios afiliados**, como de los 
   * Reportes avanzados
   * Notificaciones en tiempo real (ej. WebSockets o push).
 
----
 
-👉 Con este `README.md` tu entrega queda **sólida y alineada** con los requisitos.
-
-¿Quieres que también te prepare una **sección final de “Cómo probar rápido con Postman”** para que el profe pueda testear login/register/turnos sin perder tiempo?

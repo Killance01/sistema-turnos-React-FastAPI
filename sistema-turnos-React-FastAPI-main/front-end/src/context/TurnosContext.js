@@ -6,106 +6,114 @@ export const TurnosProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [turnos, setTurnos] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
+  const [sucursales, setSucursales] = useState([]);
 
-  // Usa REACT_APP_API_URL si existe, si no usa localhost
   const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
 
-  // --- Cargar turnos al inicio ---
+  // ---- cargar turnos y sucursales ----
+  const fetchTurnos = async () => {
+    const res = await fetch(`${API_URL}/turnos`);
+    if (!res.ok) throw new Error("Error al cargar turnos");
+    const data = await res.json();
+    setTurnos(Array.isArray(data) ? data : []);
+  };
+
+  const fetchSucursales = async () => {
+    const res = await fetch(`${API_URL}/sucursales`);
+    if (!res.ok) throw new Error("Error al cargar sucursales");
+    const data = await res.json();
+    setSucursales(Array.isArray(data) ? data : []);
+  };
+
   useEffect(() => {
-    const fetchTurnos = async () => {
-      try {
-        const url = `${API_URL}/turnos`; // ✅ CORRECTO
-        // Debug útil:
-        // console.log("➡️ GET", url);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Error al cargar turnos (${res.status})`);
-        const data = await res.json();
-        setTurnos(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error(err);
-        setTurnos([]); // evita que quede undefined
-      }
-    };
-    fetchTurnos();
+    fetchTurnos().catch(console.error);
+    fetchSucursales().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API_URL]);
 
+  // ---- auth mínima ----
   const login = (id, role) => {
     setUser({ id, role });
     if (role === "empleado" && !trabajadores.includes(id)) {
       setTrabajadores((prev) => [...prev, id]);
     }
   };
-
   const logout = () => setUser(null);
 
-  // --- Crear turno en el backend ---
+  // ---- Turnos CRUD ----
   const agregarTurno = async (turno) => {
-    try {
-      const url = `${API_URL}/turnos`; // ✅ CORRECTO
-      // console.log("➡️ POST", url, turno);
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(turno),
-      });
-      if (!res.ok) throw new Error(`Error al crear turno (${res.status})`);
-      const nuevoTurno = await res.json();
-      setTurnos((prev) => [...prev, nuevoTurno]);
-      return nuevoTurno;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    const res = await fetch(`${API_URL}/turnos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(turno),
+    });
+    if (!res.ok) throw new Error(`Error al crear turno (${res.status})`);
+    const nuevo = await res.json();
+    setTurnos((prev) => [...prev, nuevo]);
+    return nuevo;
   };
 
-  // --- Eliminar turno (requiere endpoint DELETE /turnos/{id}) ---
   const eliminarTurno = async (id) => {
-    try {
-      const url = `${API_URL}/turnos/${id}`; // ✅ CORRECTO
-      // console.log("➡️ DELETE", url);
-      const res = await fetch(url, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Error al eliminar turno (${res.status})`);
-      setTurnos((prev) => prev.filter((t) => t.id !== id));
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    const res = await fetch(`${API_URL}/turnos/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`Error al eliminar turno (${res.status})`);
+    setTurnos((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // --- Asignar turno (requiere endpoint PUT /turnos/{id}/asignar) ---
   const asignarTurno = async (id, trabajador) => {
-    try {
-      const url = `${API_URL}/turnos/${id}/asignar`; // ✅ CORRECTO
-      // console.log("➡️ PUT", url, { trabajador });
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trabajador }),
-      });
-      if (!res.ok) throw new Error(`Error al asignar turno (${res.status})`);
-      const turnoActualizado = await res.json();
-      setTurnos((prev) => prev.map((t) => (t.id === id ? turnoActualizado : t)));
-      return turnoActualizado;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    id = Number(id);
+    if (!id) throw new Error("ID inválido");
+    const res = await fetch(`${API_URL}/turnos/${id}/asignar`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trabajador }),
+    });
+    if (!res.ok) throw new Error(`Error al asignar turno (${res.status})`);
+    const upd = await res.json();
+    setTurnos((prev) => prev.map((t) => (t.id === id ? upd : t)));
+    return upd;
+  };
+
+  // ---- Sucursales: crear y asignar a turno ----
+  const crearSucursal = async ({ nombre, direccion = null, ciudad = null, activa = true }) => {
+    const res = await fetch(`${API_URL}/sucursales`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, direccion, ciudad, activa }),
+    });
+    if (!res.ok) throw new Error(`Error al crear sucursal (${res.status})`);
+    const nueva = await res.json();
+    setSucursales((prev) => [...prev, nueva]);
+    return nueva;
+  };
+
+  const asignarSucursalATurno = async (turnoId, sucursalId) => {
+    turnoId = Number(turnoId);
+    sucursalId = Number(sucursalId);
+    if (!turnoId || !sucursalId) throw new Error("IDs inválidos");
+    const res = await fetch(`${API_URL}/turnos/${turnoId}/sucursal`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sucursal_id: sucursalId }),
+    });
+    if (!res.ok) throw new Error(`Error al asignar sucursal (${res.status})`);
+    const upd = await res.json();
+    setTurnos((prev) => prev.map((t) => (t.id === turnoId ? upd : t)));
+    return upd;
   };
 
   return (
     <TurnosContext.Provider
       value={{
-        user,
-        login,
-        logout,
-        turnos,
-        agregarTurno,
-        eliminarTurno,
-        asignarTurno,
+        user, login, logout,
+        turnos, agregarTurno, eliminarTurno, asignarTurno,
         trabajadores,
+        sucursales, crearSucursal, asignarSucursalATurno,
+        refreshTurnos: fetchTurnos,
+        refreshSucursales: fetchSucursales,
       }}
     >
       {children}
     </TurnosContext.Provider>
   );
 };
+

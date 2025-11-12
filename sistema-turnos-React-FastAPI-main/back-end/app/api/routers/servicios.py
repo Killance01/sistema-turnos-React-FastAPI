@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlmodel import Session, select
-from ... db import get_session
+from ... import db
+from ...db import get_session
 from ...models import Servicio, ServicioRead
 from typing import List, Optional   
 
